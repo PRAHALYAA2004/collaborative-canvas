@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Collaborative Canvas </title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="ui">
+    <div id="toolbar">
+      <span id="info">Open multiple tabs to test realtime drawing</span>
+      <button id="clearBtn">Clear (local)</button>
+    </div>
+  </div>
+
+  <canvas id="board"></canvas>
+
+  <!-- Socket.io client will be served automatically by the server -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
