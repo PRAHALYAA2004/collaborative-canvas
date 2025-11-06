@@ -12,6 +12,8 @@ app.use(express.static(path.join(__dirname, '..', 'client')));
 
 // In-memory user store
 const users = {};
+let history = []; // all drawn strokes
+let undone = [];  // undone strokes
 
 // Utility: random bright color
 function randomColor() {
@@ -27,14 +29,32 @@ io.on('connection', (socket) => {
   socket.emit('user-info', user);
   io.emit('user-list', Object.values(users));
 
+  // Send current history to new user (so they see the existing canvas)
+  socket.emit('sync-history', history);
+
   // Drawing
   socket.on('draw', (data) => {
+    history.push(data);
+    undone = []; // clear redo stack when new stroke added
     socket.broadcast.emit('draw', data);
   });
 
-  // Clear all
-  socket.on('clear-all', () => {
-    io.emit('clear-all');
+  // Undo
+  socket.on('undo', () => {
+    if (history.length > 0) {
+      const stroke = history.pop();
+      undone.push(stroke);
+      io.emit('sync-history', history);
+    }
+  });
+
+  // Redo
+  socket.on('redo', () => {
+    if (undone.length > 0) {
+      const stroke = undone.pop();
+      history.push(stroke);
+      io.emit('sync-history', history);
+    }
   });
 
   // Cursor updates
