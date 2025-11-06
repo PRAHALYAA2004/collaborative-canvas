@@ -2,19 +2,27 @@
 const socket = io();
 
 // Canvas setup
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
+const board = document.getElementById('board');
+const cursorCanvas = document.getElementById('cursorCanvas');
+const ctx = board.getContext('2d');
+const cursorCtx = cursorCanvas.getContext('2d');
 const userList = document.getElementById('userList');
 
+// Resize canvases to fit screen
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(window.innerWidth * dpr);
-  canvas.height = Math.floor(window.innerHeight * dpr);
-  canvas.style.width = window.innerWidth + 'px';
-  canvas.style.height = window.innerHeight + 'px';
-  ctx.scale(dpr, dpr);
-}
+  const w = window.innerWidth;
+  const h = window.innerHeight;
 
+  [board, cursorCanvas].forEach((c) => {
+    c.width = Math.floor(w * dpr);
+    c.height = Math.floor(h * dpr);
+    c.style.width = w + 'px';
+    c.style.height = h + 'px';
+    const context = c.getContext('2d');
+    context.scale(dpr, dpr);
+  });
+}
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
@@ -43,7 +51,8 @@ socket.on('user-list', (users) => {
 
 // Clear button
 document.getElementById('clearBtn').addEventListener('click', () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, board.width, board.height);
+  socket.emit('clear-all');
 });
 
 // Get position helper
@@ -67,17 +76,17 @@ function drawSegment(from, to, opts = {}) {
 }
 
 // Mouse/touch events
-canvas.addEventListener('mousedown', (e) => {
+board.addEventListener('mousedown', (e) => {
   drawing = true;
   lastPos = getPosFromEvent(e);
 });
 
-canvas.addEventListener('mouseup', () => {
+board.addEventListener('mouseup', () => {
   drawing = false;
   lastPos = null;
 });
 
-canvas.addEventListener('mousemove', (e) => {
+board.addEventListener('mousemove', (e) => {
   if (!drawing) return;
   const pos = getPosFromEvent(e);
   drawSegment(lastPos, pos);
@@ -85,17 +94,17 @@ canvas.addEventListener('mousemove', (e) => {
   lastPos = pos;
 });
 
-canvas.addEventListener('touchstart', (e) => {
+board.addEventListener('touchstart', (e) => {
   drawing = true;
   lastPos = getPosFromEvent(e);
 });
 
-canvas.addEventListener('touchend', () => {
+board.addEventListener('touchend', () => {
   drawing = false;
   lastPos = null;
 });
 
-canvas.addEventListener('touchmove', (e) => {
+board.addEventListener('touchmove', (e) => {
   e.preventDefault();
   if (!drawing) return;
   const pos = getPosFromEvent(e);
@@ -108,43 +117,43 @@ canvas.addEventListener('touchmove', (e) => {
 socket.on('draw', (data) => {
   drawSegment(data.from, data.to, { color: data.color, width: data.width });
 });
-// Cursor tracking
-// Track all remote cursors
-const cursors = {}; // { socketId: { el, username, color } }
 
-// Create a floating cursor div
-function createCursor(id, username, color) {
-  const el = document.createElement('div');
-  el.className = 'cursor-indicator';
-  el.innerHTML = `<div class="dot" style="background:${color}"></div><span>${username}</span>`;
-  document.body.appendChild(el);
-  cursors[id] = { el, username, color };
-  return el;
-}
-
-// Update cursor position
-function updateCursor(id, x, y, username, color) {
-  if (!cursors[id]) createCursor(id, username, color);
-  const { el } = cursors[id];
-  el.style.transform = `translate(${x}px, ${y}px)`;
-}
-
-// Remove cursor on disconnect
-socket.on('user-disconnect', ({ id }) => {
-  if (cursors[id]) {
-    cursors[id].el.remove();
-    delete cursors[id];
-  }
+// Clear for everyone
+socket.on('clear-all', () => {
+  ctx.clearRect(0, 0, board.width, board.height);
 });
 
-// Emit your cursor position on move (even when not drawing)
-canvas.addEventListener('mousemove', (e) => {
-  const pos = getPosFromEvent(e);
-  socket.emit('cursor', { x: pos.x, y: pos.y, username, color });
-});
+// === Cursor tracking (Canvas overlay) ===
+const cursors = {};
 
-// Receive others' cursors
 socket.on('cursor', (data) => {
   const { id, x, y, username, color } = data;
-  updateCursor(id, x, y, username, color);
+  cursors[id] = { x, y, username, color };
 });
+
+socket.on('user-disconnect', ({ id }) => {
+  delete cursors[id];
+});
+
+board.addEventListener('mousemove', (e) => {
+  const pos = getPosFromEvent(e);
+  socket.emit('cursor', { x: pos.x, y: pos.y, username: name, color: myColor });
+});
+
+function renderCursors() {
+  cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+
+  Object.entries(cursors).forEach(([id, c]) => {
+    if (!c) return;
+    cursorCtx.beginPath();
+    cursorCtx.fillStyle = c.color;
+    cursorCtx.arc(c.x, c.y, 5, 0, Math.PI * 2);
+    cursorCtx.fill();
+    cursorCtx.font = "12px sans-serif";
+    cursorCtx.fillStyle = c.color;
+    cursorCtx.fillText(c.username, c.x + 8, c.y + 4);
+  });
+
+  requestAnimationFrame(renderCursors);
+}
+renderCursors();

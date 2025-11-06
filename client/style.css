@@ -7,6 +7,7 @@ html, body {
   overflow: hidden;
 }
 
+/* Toolbar */
 #toolbar {
   position: absolute;
   top: 10px;
@@ -20,6 +21,7 @@ html, body {
   align-items: center;
 }
 
+/* Active user list */
 #users {
   position: absolute;
   right: 10px;
@@ -29,6 +31,7 @@ html, body {
   border-radius: 8px;
   width: 160px;
   font-size: 14px;
+  z-index: 10;
 }
 
 #users ul {
@@ -41,12 +44,29 @@ html, body {
   margin-bottom: 4px;
 }
 
+/* Canvas layers */
 canvas#board {
   display: block;
   width: 100vw;
   height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
+canvas#cursorCanvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Buttons */
 button {
   background: #e74c3c;
   border: none;
