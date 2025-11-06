@@ -109,3 +109,42 @@ socket.on('draw', (data) => {
   drawSegment(data.from, data.to, { color: data.color, width: data.width });
 });
 // Cursor tracking
+// Track all remote cursors
+const cursors = {}; // { socketId: { el, username, color } }
+
+// Create a floating cursor div
+function createCursor(id, username, color) {
+  const el = document.createElement('div');
+  el.className = 'cursor-indicator';
+  el.innerHTML = `<div class="dot" style="background:${color}"></div><span>${username}</span>`;
+  document.body.appendChild(el);
+  cursors[id] = { el, username, color };
+  return el;
+}
+
+// Update cursor position
+function updateCursor(id, x, y, username, color) {
+  if (!cursors[id]) createCursor(id, username, color);
+  const { el } = cursors[id];
+  el.style.transform = `translate(${x}px, ${y}px)`;
+}
+
+// Remove cursor on disconnect
+socket.on('user-disconnect', ({ id }) => {
+  if (cursors[id]) {
+    cursors[id].el.remove();
+    delete cursors[id];
+  }
+});
+
+// Emit your cursor position on move (even when not drawing)
+canvas.addEventListener('mousemove', (e) => {
+  const pos = getPosFromEvent(e);
+  socket.emit('cursor', { x: pos.x, y: pos.y, username, color });
+});
+
+// Receive others' cursors
+socket.on('cursor', (data) => {
+  const { id, x, y, username, color } = data;
+  updateCursor(id, x, y, username, color);
+});
