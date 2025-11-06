@@ -1,21 +1,18 @@
-// client/main.js
-
-// Connect to Socket.io server (same host)
+// Connect to Socket.io server
 const socket = io();
 
 // Canvas setup
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
+const userList = document.getElementById('userList');
 
 function resizeCanvas() {
-  // Resize the canvas drawing buffer to match CSS size
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.floor(window.innerWidth * dpr);
   canvas.height = Math.floor(window.innerHeight * dpr);
   canvas.style.width = window.innerWidth + 'px';
   canvas.style.height = window.innerHeight + 'px';
   ctx.scale(dpr, dpr);
-  // Optional: redraw background if you maintain an offscreen buffer
 }
 
 window.addEventListener('resize', resizeCanvas);
@@ -24,17 +21,32 @@ resizeCanvas();
 // Drawing state
 let drawing = false;
 let lastPos = null;
-const color = '#000000';
-const lineWidth = 2;
+let myColor = '#000000';
+let lineWidth = 2;
 
-// Get toolbar elements
-const clearBtn = document.getElementById('clearBtn');
-clearBtn.addEventListener('click', () => {
-  // local clear (won't clear others yet)
+// Ask for user name
+const name = prompt("Enter your name:") || "Anonymous";
+socket.emit('set-name', name);
+
+// Listen for assigned color
+socket.on('user-info', (user) => {
+  myColor = user.color;
+  console.log(`🖌 Your color: ${myColor}`);
+});
+
+// Update user list
+socket.on('user-list', (users) => {
+  userList.innerHTML = users
+    .map((u) => `<li style="color:${u.color}">${u.name}</li>`)
+    .join('');
+});
+
+// Clear button
+document.getElementById('clearBtn').addEventListener('click', () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// Utility: get mouse/touch pos relative to viewport
+// Get position helper
 function getPosFromEvent(e) {
   if (e.touches && e.touches[0]) {
     return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -42,25 +54,25 @@ function getPosFromEvent(e) {
   return { x: e.clientX, y: e.clientY };
 }
 
-// Draw a segment locally
+// Draw segment
 function drawSegment(from, to, opts = {}) {
   ctx.beginPath();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = opts.color || color;
+  ctx.strokeStyle = opts.color || myColor;
   ctx.lineWidth = opts.width || lineWidth;
   ctx.moveTo(from.x, from.y);
   ctx.lineTo(to.x, to.y);
   ctx.stroke();
 }
 
-// Mouse / touch handlers
+// Mouse/touch events
 canvas.addEventListener('mousedown', (e) => {
   drawing = true;
   lastPos = getPosFromEvent(e);
 });
 
-canvas.addEventListener('mouseup', (e) => {
+canvas.addEventListener('mouseup', () => {
   drawing = false;
   lastPos = null;
 });
@@ -68,41 +80,32 @@ canvas.addEventListener('mouseup', (e) => {
 canvas.addEventListener('mousemove', (e) => {
   if (!drawing) return;
   const pos = getPosFromEvent(e);
-  // Draw locally
   drawSegment(lastPos, pos);
-  // Send the segment to server (live)
-  socket.emit('draw', { from: lastPos, to: pos, color, width: lineWidth });
+  socket.emit('draw', { from: lastPos, to: pos, color: myColor, width: lineWidth });
   lastPos = pos;
 });
 
-// Touch events (mobile)
 canvas.addEventListener('touchstart', (e) => {
   drawing = true;
   lastPos = getPosFromEvent(e);
 });
 
-canvas.addEventListener('touchend', (e) => {
+canvas.addEventListener('touchend', () => {
   drawing = false;
   lastPos = null;
 });
 
 canvas.addEventListener('touchmove', (e) => {
-  e.preventDefault(); // prevent page scroll
+  e.preventDefault();
   if (!drawing) return;
   const pos = getPosFromEvent(e);
   drawSegment(lastPos, pos);
-  socket.emit('draw', { from: lastPos, to: pos, color, width: lineWidth });
+  socket.emit('draw', { from: lastPos, to: pos, color: myColor, width: lineWidth });
   lastPos = pos;
 }, { passive: false });
 
-// Receive draw events from others
+// Receive draw events
 socket.on('draw', (data) => {
-  // data: { from: {x,y}, to: {x,y}, color, width }
-  // Draw the incoming segment
   drawSegment(data.from, data.to, { color: data.color, width: data.width });
 });
-// Handle user disconnects if needed
-socket.on('user-disconnect', (data) => {
-  console.log('User disconnected:', data.id);
-  // Optionally handle cleanup
-});
+// Cursor tracking

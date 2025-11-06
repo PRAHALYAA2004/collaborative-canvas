@@ -1,4 +1,3 @@
-// server/server.js
 const path = require('path');
 const express = require('express');
 const http = require('http');
@@ -6,31 +5,55 @@ const { Server } = require('socket.io');
 
 const app = express();
 const httpServer = http.createServer(app);
+const io = new Server(httpServer);
 
 // Serve static client files from ../client
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
-// Create Socket.io server attached to HTTP server
-const io = new Server(httpServer);
+// In-memory user store
+const users = {};
 
-// Simple in-memory room/state 
+// Utility to generate random bright color
+function randomColor() {
+  return `hsl(${Math.floor(Math.random() * 360)}, 90%, 60%)`;
+}
+
 io.on('connection', (socket) => {
   console.log('Client connected', socket.id);
 
-  // Forward incoming "draw" events to all other clients
+  // Assign new user color and placeholder name
+  const user = { id: socket.id, color: randomColor(), name: `User-${socket.id.slice(0, 4)}` };
+  users[socket.id] = user;
+
+  // Notify this user of their color
+  socket.emit('user-info', user);
+
+  // Broadcast updated user list to everyone
+  io.emit('user-list', Object.values(users));
+
+  // Receive and forward draw events
   socket.on('draw', (data) => {
-    // data: { x, y, color, width, id, type }
     socket.broadcast.emit('draw', data);
   });
 
-  // Cursor positions
+  // Receive cursor updates
   socket.on('cursor', (data) => {
     socket.broadcast.emit('cursor', { id: socket.id, ...data });
   });
 
+  // Handle user renaming
+  socket.on('set-name', (name) => {
+    if (typeof name === 'string' && name.trim()) {
+      users[socket.id].name = name.trim();
+      io.emit('user-list', Object.values(users));
+    }
+  });
+
+  // Handle disconnects
   socket.on('disconnect', () => {
     console.log('Client disconnected', socket.id);
-    // notify others if needed
+    delete users[socket.id];
+    io.emit('user-list', Object.values(users));
     socket.broadcast.emit('user-disconnect', { id: socket.id });
   });
 });
@@ -38,6 +61,5 @@ io.on('connection', (socket) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
-
