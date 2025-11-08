@@ -221,6 +221,42 @@ function render() {
   requestAnimationFrame(render);
 }
 render();
+// === PERFORMANCE METRICS ===
+const perfPanel = document.createElement("div");
+perfPanel.style.position = "fixed";
+perfPanel.style.bottom = "20px";
+perfPanel.style.right = "20px";
+perfPanel.style.background = "rgba(0,0,0,0.6)";
+perfPanel.style.color = "#00ffff";
+perfPanel.style.fontFamily = "monospace";
+perfPanel.style.fontSize = "16px";
+perfPanel.style.padding = "12px 20px";
+perfPanel.style.borderRadius = "16px";
+perfPanel.style.zIndex = "1000";
+perfPanel.style.pointerEvents = "none";
+document.body.appendChild(perfPanel);
+
+let lastFrameTime = performance.now();
+let frameCount = 0;
+let fps = 0;
+
+function updatePerformanceMetrics() {
+  const now = performance.now();
+ const delta = now - lastFrameTime;
+  frameCount++;
+
+if (delta >= 1000) {
+  fps = (frameCount * 1000) / delta; // more accurate FPS
+  const latency = delta / frameCount; // average frame latency
+  perfPanel.textContent = `FPS: ${fps.toFixed(1)} | Latency: ${latency.toFixed(2)} ms`;
+  frameCount = 0;
+  lastFrameTime = now;
+}
+
+  requestAnimationFrame(updatePerformanceMetrics);
+}
+
+updatePerformanceMetrics();
 
 
 
