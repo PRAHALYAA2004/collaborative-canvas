@@ -34,6 +34,7 @@ flowchart LR
     C --> UndoRedo
     E --> Performance
     Performance --> Conflict
+    Conflict --> F
 ```
 
 ## 2. WebSocket Protocol
@@ -99,3 +100,4 @@ The following optimizations were implemented for smooth, real-time interaction:
 * This approach ensures consistency while keeping latency extremely low.
 
 ---
+
