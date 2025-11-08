@@ -137,6 +137,7 @@ label {
 }
 
 /* === CANVASES === */
+
 canvas#board, 
 canvas#cursorCanvas {
   position: fixed;
@@ -146,6 +147,7 @@ canvas#cursorCanvas {
   height: 100vh;
   display: block;
   background: transparent;
+  z-index: 1;
 }
 
 canvas#cursorCanvas {
@@ -192,4 +194,37 @@ canvas#cursorCanvas {
 
 #toolbar {
   transition: all 0.4s ease-in-out;
+}
+
+/* === METRICS DISPLAY === */
+#metrics {
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+#metrics:hover {
+  background: rgba(0, 0, 0, 0.8);
+}    
+
+/* === SAVE / LOAD BUTTONS === */
+#saveBtn,
+#loadBtn {
+  background: #00a8a8;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  width: 80px;
+  height: 36px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#saveBtn:hover,
+#loadBtn:hover {
+  background: #00cfcf;
+  box-shadow: 0 0 10px rgba(0, 207, 207, 0.5);
+  transform: scale(1.05);
 }

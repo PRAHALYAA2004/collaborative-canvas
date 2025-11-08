@@ -157,11 +157,11 @@ socket.on('draw', (data) => {
 });
 
 //  Redraw full history when sync (undo/redo)
-socket.on('sync-history', (serverHistory) => {
-  history = serverHistory;
-  ctx.clearRect(0, 0, board.width, board.height);
-  history.forEach((stroke) => drawSegment(stroke.from, stroke.to, stroke));
-});
+//socket.on('sync-history', (serverHistory) => {
+//  history = serverHistory;
+//  ctx.clearRect(0, 0, board.width, board.height);
+//  history.forEach((stroke) => drawSegment(stroke.from, stroke.to, stroke));
+//});
 
 // Cursor tracking
 const cursors = {};
@@ -169,6 +169,38 @@ socket.on('cursor', (data) => {
   cursors[data.id] = data;
 });
 socket.on('user-disconnect', ({ id }) => delete cursors[id]);
+
+// Save/Load buttons
+const saveBtn = document.getElementById("saveBtn");
+const loadBtn = document.getElementById("loadBtn");
+
+saveBtn.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/save");
+    alert(await res.text());
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save drawing");
+  }
+});
+
+loadBtn.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/load");
+    alert(await res.text());
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load drawing");
+  }
+});
+
+// === When server sends loaded canvas data ===
+socket.on("loadCanvas", (data) => {
+  strokes = data;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  redrawCanvas(); 
+});
+
 
 function renderCursors() {
   cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
@@ -189,3 +221,6 @@ function render() {
   requestAnimationFrame(render);
 }
 render();
+
+
+
