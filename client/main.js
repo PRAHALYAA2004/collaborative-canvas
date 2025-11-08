@@ -14,25 +14,34 @@ function resizeCanvas() {
   const w = window.innerWidth;
   const h = window.innerHeight;
 
+  // Save current drawings before resizing
+  const imageData = ctx.getImageData(0, 0, board.width, board.height);
+
   [board, cursorCanvas].forEach((c) => {
     c.width = Math.floor(w * dpr);
     c.height = Math.floor(h * dpr);
     c.style.width = w + 'px';
     c.style.height = h + 'px';
     const context = c.getContext('2d');
-    context.setTransform(1, 0, 0, 1, 0, 0); // reset transform before scaling
+    context.setTransform(1, 0, 0, 1, 0, 0);
     context.scale(dpr, dpr);
   });
+
+  // Restore the previous drawing after resize
+  ctx.putImageData(imageData, 0, 0);
 }
+
 window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
 resizeCanvas();
 
 // Drawing state
 let drawing = false;
 let lastPos = null;
-let myColor = '#000000';
+let myColor = '#ffffff';
 let lineWidth = 2;
-let history = []; // client copy of strokes
+let currentTool = 'brush';
+let history = [];
 
 // Ask for user name
 const name = prompt("Enter your name:") || "Anonymous";
@@ -40,8 +49,7 @@ socket.emit('set-name', name);
 
 // Listen for assigned color
 socket.on('user-info', (user) => {
-  myColor = user.color;
-  console.log(`🖌 Your color: ${myColor}`);
+  console.log(`🖌 Your color: ${user.color}`);
 });
 
 // Update user list
@@ -55,15 +63,38 @@ socket.on('user-list', (users) => {
 document.getElementById('undoBtn').addEventListener('click', () => socket.emit('undo'));
 document.getElementById('redoBtn').addEventListener('click', () => socket.emit('redo'));
 
-// Get position helper
-function getPosFromEvent(e) {
+// Tool bindings
+const brushBtn = document.getElementById('brushBtn');
+const eraserBtn = document.getElementById('eraserBtn');
+const colorPicker = document.getElementById('colorPicker');
+const strokeWidth = document.getElementById('strokeWidth');
+
+brushBtn.onclick = () => {
+  currentTool = 'brush';
+  brushBtn.classList.add('active');
+  eraserBtn.classList.remove('active');
+};
+
+eraserBtn.onclick = () => {
+  currentTool = 'eraser';
+  eraserBtn.classList.add('active');
+  brushBtn.classList.remove('active');
+};
+
+colorPicker.oninput = (e) => (myColor = e.target.value);
+strokeWidth.oninput = (e) => (lineWidth = e.target.value);
+
+// Get canvas position from event
+function getCanvasPosFromEvent(e) {
+  const rect = board.getBoundingClientRect();
   if (e.touches && e.touches[0]) {
-    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    const t = e.touches[0];
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
   }
-  return { x: e.clientX, y: e.clientY };
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
-// Draw segment
+// Draw a line segment
 function drawSegment(from, to, opts = {}) {
   ctx.beginPath();
   ctx.lineCap = 'round';
@@ -75,10 +106,10 @@ function drawSegment(from, to, opts = {}) {
   ctx.stroke();
 }
 
-// Mouse/touch events
+// Handle local drawing
 board.addEventListener('mousedown', (e) => {
   drawing = true;
-  lastPos = getPosFromEvent(e);
+  lastPos = getCanvasPosFromEvent(e);
 });
 
 board.addEventListener('mouseup', () => {
@@ -87,20 +118,21 @@ board.addEventListener('mouseup', () => {
 });
 
 board.addEventListener('mousemove', (e) => {
-  const pos = getPosFromEvent(e);
+  const pos = getCanvasPosFromEvent(e);
   socket.emit('cursor', { x: pos.x, y: pos.y, username: name, color: myColor });
 
   if (!drawing) return;
-  drawSegment(lastPos, pos);
-  const data = { from: lastPos, to: pos, color: myColor, width: lineWidth };
+  const color = currentTool === 'eraser' ? '#111' : myColor;
+  drawSegment(lastPos, pos, { color, width: lineWidth });
+  const data = { from: lastPos, to: pos, color, width: lineWidth };
   history.push(data);
-  socket.emit('draw', data);
+  socket.emit('draw', data); // send stroke to server
   lastPos = pos;
 });
 
 board.addEventListener('touchstart', (e) => {
   drawing = true;
-  lastPos = getPosFromEvent(e);
+  lastPos = getCanvasPosFromEvent(e);
 });
 
 board.addEventListener('touchend', () => {
@@ -111,46 +143,36 @@ board.addEventListener('touchend', () => {
 board.addEventListener('touchmove', (e) => {
   e.preventDefault();
   if (!drawing) return;
-  const pos = getPosFromEvent(e);
-  drawSegment(lastPos, pos);
-  socket.emit('draw', { from: lastPos, to: pos, color: myColor, width: lineWidth });
+  const pos = getCanvasPosFromEvent(e);
+  const color = currentTool === 'eraser' ? '#111' : myColor;
+  drawSegment(lastPos, pos, { color, width: lineWidth });
+  socket.emit('draw', { from: lastPos, to: pos, color, width: lineWidth });
   lastPos = pos;
 }, { passive: false });
 
-// Receive draw events
+// Real-time draw event from others
 socket.on('draw', (data) => {
-  drawSegment(data.from, data.to, { color: data.color, width: data.width });
+  // Draw immediately when any other user emits a stroke
+  drawSegment(data.from, data.to, data);
 });
 
-// Redraw full history (used for undo/redo)
+//  Redraw full history when sync (undo/redo)
 socket.on('sync-history', (serverHistory) => {
   history = serverHistory;
   ctx.clearRect(0, 0, board.width, board.height);
   history.forEach((stroke) => drawSegment(stroke.from, stroke.to, stroke));
 });
 
-
-// === Cursor tracking (Canvas overlay) ===
+// Cursor tracking
 const cursors = {};
-
 socket.on('cursor', (data) => {
-  const { id, x, y, username, color } = data;
-  cursors[id] = { x, y, username, color };
+  cursors[data.id] = data;
 });
-
-socket.on('user-disconnect', ({ id }) => {
-  delete cursors[id];
-});
-
-board.addEventListener('mousemove', (e) => {
-  const pos = getPosFromEvent(e);
-  socket.emit('cursor', { x: pos.x, y: pos.y, username: name, color: myColor });
-});
+socket.on('user-disconnect', ({ id }) => delete cursors[id]);
 
 function renderCursors() {
   cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
-
-  Object.entries(cursors).forEach(([id, c]) => {
+  Object.values(cursors).forEach((c) => {
     if (!c) return;
     cursorCtx.beginPath();
     cursorCtx.fillStyle = c.color;
@@ -161,11 +183,9 @@ function renderCursors() {
     cursorCtx.fillText(c.username, c.x + 8, c.y + 4);
   });
 }
+
 function render() {
-  // Only draw cursors over current canvas strokes
-  ctx.save();
   renderCursors();
-  ctx.restore();
   requestAnimationFrame(render);
 }
 render();

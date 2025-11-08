@@ -1,78 +1,195 @@
+/* === GLOBAL === */
 html, body {
   height: 100%;
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue";
+  font-family: 'Inter', sans-serif;
   background: #111;
-  color: #fff;
+  color: #f2f2f2;
   overflow: hidden;
 }
 
-/* Toolbar */
+/* === TOOLBAR === */
 #toolbar {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  background: rgba(0,0,0,0.5);
-  padding: 8px 10px;
-  border-radius: 8px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-/* Active user list */
-#users {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  background: rgba(0,0,0,0.5);
-  padding: 10px;
-  border-radius: 8px;
-  width: 160px;
-  font-size: 14px;
-  z-index: 10;
-}
-
-#users ul {
-  list-style: none;
-  padding-left: 0;
-  margin: 5px 0 0 0;
-}
-
-#users li {
-  margin-bottom: 4px;
-}
-
-/* Canvas layers */
-canvas#board {
-  display: block;
-  width: 100vw;
-  height: 100vh;
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 1;
+  width: 100px;
+  height: 100vh;
+  background: linear-gradient(180deg, #181818 0%, #0f0f0f 100%);
+  border-right: 1px solid #222;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  z-index: 10;
+}
+
+#toolbar h3 {
+  font-size: 14px;
+  color: #aaa;
+  margin: 0 0 12px;
+  letter-spacing: 1px;
+}
+
+.tool-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 10px;
+}
+
+/* === TOOL BUTTONS === */
+.tool {
+  background: #222;
+  border: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.tool svg {
+  width: 22px;
+  height: 22px;
+  fill: #ccc;
+  transition: fill 0.2s ease;
+}
+
+.tool:hover {
+  background: #333;
+}
+
+.tool:hover svg {
+  fill: #fff;
+}
+
+.tool.active {
+  background: #00a8a8;
+  box-shadow: 0 0 10px rgba(0,168,168,0.5);
+}
+
+.tool.active svg {
+  fill: #fff;
+}
+
+/* === COLOR PICKER & WIDTH === */
+label {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 4px;
+  text-align: center;
+  display: block;
+}
+
+#colorPicker {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  background: none;
+  transition: transform 0.2s ease;
+}
+
+#colorPicker:hover {
+  transform: scale(1.1);
+}
+
+#strokeWidth {
+  width: 60px;
+  accent-color: #00a8a8;
+  cursor: pointer;
+}
+
+/* === ONLINE USERS === */
+.tool-group h4 {
+  font-size: 13px;
+  color: #aaa;
+  margin: 0 0 8px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+#userList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+
+#userList li {
+  font-size: 12px;
+  color: #00d4ff;
+  margin-bottom: 5px;
+  transition: color 0.2s, transform 0.2s;
+}
+
+#userList li:hover {
+  color: #fff;
+  transform: scale(1.05);
+}
+
+/* === CANVASES === */
+canvas#board, 
+canvas#cursorCanvas {
+  position: fixed;
+  top: 0;
+  left: 100px;
+  width: calc(100vw - 100px);
+  height: 100vh;
+  display: block;
+  background: transparent;
 }
 
 canvas#cursorCanvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-  position: absolute;
-  top: 0;
-  left: 0;
   pointer-events: none;
   z-index: 2;
 }
 
-/* Buttons */
-button {
-  background: #e74c3c;
-  border: none;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
+/* === RESPONSIVE TOOLBAR === */
+@media (max-width: 768px) {
+  #toolbar {
+    width: 100%;
+    height: 80px;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    border-right: none;
+    border-bottom: 1px solid #222;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  }
+
+  canvas#board, 
+  canvas#cursorCanvas {
+    left: 0;
+    top: 80px;
+    width: 100vw;
+    height: calc(100vh - 80px);
+  }
+
+  .tool-group {
+    flex-direction: row;
+    margin-bottom: 0;
+    gap: 12px;
+  }
+
+  #userList li {
+    font-size: 11px;
+  }
+}
+
+/* === SCROLLBAR STYLES === */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+#toolbar {
+  transition: all 0.4s ease-in-out;
 }
